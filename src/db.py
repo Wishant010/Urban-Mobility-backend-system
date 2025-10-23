@@ -91,16 +91,17 @@ def _find_user_row(username):
         c = conn.cursor()
         c.execute('SELECT username, password_hash, role, first_name, last_name, registration_date FROM users')
         rows = c.fetchall()
-        
+
         for row in rows:
             try:
                 # Try to decrypt the stored username
                 decrypted_username = decrypt_data(row[0])
-                if decrypted_username.lower() == username.lower():
+                # FIX: Use casefold() for case-insensitive comparison without modifying input
+                if decrypted_username.casefold() == username.casefold():
                     return row
             except:
                 # Handle legacy unencrypted data
-                if row[0].lower() == username.lower():
+                if row[0].casefold() == username.casefold():
                     return row
         return None
 
@@ -131,18 +132,37 @@ def get_user_by_username(username: str):
     return None
 
 def add_user(username, password_hash, role, first_name, last_name):
-    """Add new user to database with uniqueness check"""
+    """Add new user to database with uniqueness check and validation"""
     try:
+        # FIX: Whitelisting validation - validate ALL inputs before database operation
+        from input_validation import validate_username, validate_name
+
+        # Validate username format
+        if not validate_username(username):
+            print(f"Invalid username format: {username}")
+            return False
+
+        # Validate role (whitelist)
+        valid_roles = ['super_admin', 'system_admin', 'service_engineer']
+        if role not in valid_roles:
+            print(f"Invalid role: {role}")
+            return False
+
+        # Validate names
+        if not validate_name(first_name) or not validate_name(last_name):
+            print(f"Invalid name format")
+            return False
+
         # Check if username already exists (case-insensitive)
         existing_user = get_user_by_username(username)
         if existing_user:
             return False  # Username already exists
-        
+
         with get_db() as conn:
             c = conn.cursor()
             # Encrypt sensitive data
             encrypted_username = encrypt_data(username)
-            c.execute('''INSERT INTO users (username, password_hash, role, first_name, last_name, registration_date) 
+            c.execute('''INSERT INTO users (username, password_hash, role, first_name, last_name, registration_date)
                         VALUES (?, ?, ?, ?, ?, ?)''',
                       (encrypted_username, password_hash, role, first_name, last_name, datetime.now().isoformat()))
             conn.commit()
@@ -260,13 +280,59 @@ def reset_user_password(username, new_password_hash):
 # TRAVELLER MANAGEMENT FUNCTIONS
 # ============================================================================
 
-def add_traveller(first_name, last_name, birthday, gender, street_name, house_number, 
+def add_traveller(first_name, last_name, birthday, gender, street_name, house_number,
                  zip_code, city, email_address, mobile_phone, driving_license_number):
-    """Add new traveller to database"""
+    """Add new traveller to database with validation"""
     try:
+        # FIX: Whitelisting validation - validate ALL inputs before database operation
+        from input_validation import (validate_name, validate_gender, validate_street_name,
+                                     validate_house_number, validate_zip_code, validate_city,
+                                     validate_email, validate_mobile_phone, validate_driving_license)
+
+        # Validate all inputs
+        if not validate_name(first_name):
+            print(f"Invalid first name: {first_name}")
+            return None
+
+        if not validate_name(last_name):
+            print(f"Invalid last name: {last_name}")
+            return None
+
+        if not validate_gender(gender):
+            print(f"Invalid gender: {gender}")
+            return None
+
+        if not validate_street_name(street_name):
+            print(f"Invalid street name: {street_name}")
+            return None
+
+        if not validate_house_number(house_number):
+            print(f"Invalid house number: {house_number}")
+            return None
+
+        if not validate_zip_code(zip_code):
+            print(f"Invalid zip code: {zip_code}")
+            return None
+
+        if not validate_city(city):
+            print(f"Invalid city: {city}")
+            return None
+
+        if not validate_email(email_address):
+            print(f"Invalid email: {email_address}")
+            return None
+
+        if not validate_mobile_phone(mobile_phone):
+            print(f"Invalid mobile phone: {mobile_phone}")
+            return None
+
+        if not validate_driving_license(driving_license_number):
+            print(f"Invalid driving license: {driving_license_number}")
+            return None
+
         import uuid
         customer_id = str(uuid.uuid4())[:12]  # Generate unique customer ID
-        
+
         with get_db() as conn:
             c = conn.cursor()
             # Encrypt sensitive data
@@ -274,11 +340,11 @@ def add_traveller(first_name, last_name, birthday, gender, street_name, house_nu
             encrypted_phone = encrypt_data(mobile_phone)
             encrypted_street = encrypt_data(street_name)
             encrypted_house_number = encrypt_data(house_number)
-            
-            c.execute('''INSERT INTO travellers 
-                        (customer_id, first_name, last_name, birthday, gender, street_name, 
-                         house_number, zip_code, city, email_address, mobile_phone, 
-                         driving_license_number, registration_date) 
+
+            c.execute('''INSERT INTO travellers
+                        (customer_id, first_name, last_name, birthday, gender, street_name,
+                         house_number, zip_code, city, email_address, mobile_phone,
+                         driving_license_number, registration_date)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                       (customer_id, first_name, last_name, birthday, gender, encrypted_street,
                        encrypted_house_number, zip_code, city, encrypted_email, encrypted_phone,
@@ -443,20 +509,61 @@ def delete_traveller(customer_id):
 # SCOOTER MANAGEMENT FUNCTIONS
 # ============================================================================
 
-def add_scooter(brand, model, serial_number, top_speed, battery_capacity, 
+def add_scooter(brand, model, serial_number, top_speed, battery_capacity,
                state_of_charge, target_range_soc, location, last_maintenance_date=None,
                out_of_service_status=0, mileage=0.0):
-    """Add a new scooter to the database"""
+    """Add a new scooter to the database with validation"""
     try:
+        # FIX: Whitelisting validation - validate ALL inputs before database operation
+        from input_validation import (validate_brand_model, validate_serial_number,
+                                     validate_positive_integer, validate_percentage,
+                                     validate_positive_float)
+
+        # Validate brand and model
+        if not validate_brand_model(brand):
+            print(f"Invalid brand: {brand}")
+            return False
+
+        if not validate_brand_model(model):
+            print(f"Invalid model: {model}")
+            return False
+
+        # Validate serial number
+        if not validate_serial_number(serial_number):
+            print(f"Invalid serial number: {serial_number}")
+            return False
+
+        # Validate numeric fields
+        if not validate_positive_integer(str(top_speed)):
+            print(f"Invalid top speed: {top_speed}")
+            return False
+
+        if not validate_positive_integer(str(battery_capacity)):
+            print(f"Invalid battery capacity: {battery_capacity}")
+            return False
+
+        if not validate_percentage(str(state_of_charge)):
+            print(f"Invalid state of charge: {state_of_charge}")
+            return False
+
+        if not validate_positive_float(str(mileage)):
+            print(f"Invalid mileage: {mileage}")
+            return False
+
+        # Validate out_of_service_status (should be 0 or 1)
+        if out_of_service_status not in [0, 1]:
+            print(f"Invalid out_of_service_status: {out_of_service_status}")
+            return False
+
         with get_db() as conn:
             c = conn.cursor()
-            c.execute('''INSERT INTO scooters 
-                        (serial_number, brand, model, top_speed, battery_capacity, 
-                         state_of_charge, target_range_soc, location, last_maintenance_date, 
-                         out_of_service_status, mileage, in_service_date) 
+            c.execute('''INSERT INTO scooters
+                        (serial_number, brand, model, top_speed, battery_capacity,
+                         state_of_charge, target_range_soc, location, last_maintenance_date,
+                         out_of_service_status, mileage, in_service_date)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                       (serial_number, brand, model, top_speed, battery_capacity, state_of_charge,
-                       target_range_soc, location, last_maintenance_date, out_of_service_status, 
+                       target_range_soc, location, last_maintenance_date, out_of_service_status,
                        mileage, datetime.now().isoformat()))
             conn.commit()
         return True
@@ -539,8 +646,9 @@ def search_scooters(search_term):
 def update_scooter(serial_number, user_role, **kwargs):
     """Update scooter information based on user role permissions"""
     # Define which fields each role can update
-    service_engineer_fields = ['state_of_charge', 'location', 'out_of_service_status', 'mileage', 'last_maintenance_date']
-    admin_fields = service_engineer_fields + ['brand', 'model', 'top_speed', 'battery_capacity', 'target_range_soc']
+    # FIX: Added target_range_soc to service_engineer_fields (per requirements Table 3)
+    service_engineer_fields = ['state_of_charge', 'target_range_soc', 'location', 'out_of_service_status', 'mileage', 'last_maintenance_date']
+    admin_fields = service_engineer_fields + ['brand', 'model', 'top_speed', 'battery_capacity']
     
     try:
         with get_db() as conn:

@@ -161,17 +161,22 @@ def change_own_password(username: str, old_password: str, new_password: str) -> 
     # Skip validation for super admin (hardcoded)
     if username == SUPER_ADMIN['username']:
         return False, "Super admin wachtwoord kan niet gewijzigd worden"
-    
+
     # Verify old password
     user = get_user_by_username(username)
     if not user or not check_password(old_password, user['password_hash']):
         log_event(f"Mislukte wachtwoord wijziging", username, "Verkeerd huidig wachtwoord")
         return False, "Huidig wachtwoord is incorrect"
-    
+
+    # FIX: Check if new password is same as old password
+    if old_password == new_password:
+        log_event(f"Mislukte wachtwoord wijziging", username, "Nieuw wachtwoord is hetzelfde als oud wachtwoord")
+        return False, "Nieuw wachtwoord mag niet hetzelfde zijn als het huidige wachtwoord"
+
     # Validate new password
     if not validate_password(new_password):
         return False, "Nieuw wachtwoord voldoet niet aan eisen"
-    
+
     # Update password
     password_hash = hash_password(new_password)
     if reset_user_password(username, password_hash):

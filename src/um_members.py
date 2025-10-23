@@ -1,14 +1,15 @@
 import sys
 import os
+import getpass  # FIX: Added for password masking
 from datetime import datetime
 
 # Import all modules
-from auth import (login, register_user, reset_password, change_own_password, 
+from auth import (login, register_user, reset_password, change_own_password,
                  validate_role_action, has_permission)
 from db import (init_db, get_all_users, update_user, delete_user, log_event,
                add_traveller, get_all_travellers, search_travellers, update_traveller, delete_traveller,
                add_scooter, get_all_scooters, search_scooters, update_scooter, delete_scooter,
-               get_logs, get_suspicious_logs, add_restore_code, get_restore_code, 
+               get_logs, get_suspicious_logs, add_restore_code, get_restore_code,
                use_restore_code, revoke_restore_code)
 from backup import create_backup, restore_backup, list_backups, get_backup_statistics
 from input_validation import *
@@ -271,21 +272,39 @@ def create_new_user(current_username: str, current_role: str):
             username = get_validated_input_with_back("Gebruikersnaam (8-10 tekens)", validate_username, "username")
             if username is None:
                 return
-            
-            # Check if username already exists (case-insensitive)
+
+            # FIX: Check if username already exists (case-insensitive without modifying input)
             existing_users = get_all_users()
-            username_exists = any(u['username'].lower() == username.lower() for u in existing_users)
-            
+            username_exists = any(u['username'].casefold() == username.casefold() for u in existing_users)
+
             if username_exists:
                 print(f"❌ Gebruikersnaam '{username}' bestaat al. Kies een andere gebruikersnaam.")
                 continue
             else:
                 print(f"✅ Gebruikersnaam '{username}' is beschikbaar.")
                 break
-        
-        password = get_validated_input_with_back("Wachtwoord (12-30 tekens, complex)", validate_password, "password")
-        if password is None:
-            return
+
+        # FIX: Use getpass for password masking with max attempts
+        max_attempts = 3
+        password = None
+        for attempt in range(1, max_attempts + 1):
+            print(f"\nWachtwoord invoeren (poging {attempt}/{max_attempts})")
+            temp_password = getpass.getpass("Wachtwoord (12-30 tekens, complex): ")
+
+            if check_back_command(temp_password):
+                return
+
+            if validate_password(temp_password):
+                password = temp_password
+                break
+            else:
+                print("❌ Wachtwoord voldoet niet aan eisen (12-30 tekens met uppercase, lowercase, cijfer, speciaal teken)")
+                if attempt < max_attempts:
+                    print(f"Probeer opnieuw. Nog {max_attempts - attempt} poging(en).")
+                else:
+                    print("❌ Maximum aantal pogingen bereikt.")
+                    pause()
+                    return
         
         # Role selection based on permissions
         available_roles = []
@@ -2131,30 +2150,50 @@ def change_password_menu(username: str, role: str):
     """Change user password"""
     clear_screen()
     show_header("Wachtwoord Wijzigen")
-    
+
     if username == 'super_admin':
         print("⚠️  Super admin wachtwoord kan niet gewijzigd worden.")
         pause()
         return
-    
+
     try:
-        old_password = input("Huidig wachtwoord: ")
+        # FIX: Use getpass for password masking
+        old_password = getpass.getpass("Huidig wachtwoord: ")
         if check_back_command(old_password):
             return
-        
-        new_password = get_validated_input_with_back("Nieuw wachtwoord", validate_password, "password")
-        if new_password is None:
-            return
-        
-        confirm_password = input("Bevestig nieuw wachtwoord: ")
+
+        # FIX: Max 3 attempts for new password validation
+        max_attempts = 3
+        new_password = None
+        for attempt in range(1, max_attempts + 1):
+            print(f"\nNieuw wachtwoord (poging {attempt}/{max_attempts})")
+            temp_new_password = getpass.getpass("Nieuw wachtwoord: ")
+
+            if check_back_command(temp_new_password):
+                return
+
+            if validate_password(temp_new_password):
+                new_password = temp_new_password
+                break
+            else:
+                print("❌ Nieuw wachtwoord voldoet niet aan eisen (12-30 tekens, complex)")
+                if attempt < max_attempts:
+                    print(f"Probeer opnieuw. Nog {max_attempts - attempt} poging(en).")
+                else:
+                    print("❌ Maximum aantal pogingen bereikt.")
+                    pause()
+                    return
+
+        # FIX: Use getpass for confirmation
+        confirm_password = getpass.getpass("Bevestig nieuw wachtwoord: ")
         if check_back_command(confirm_password):
             return
-        
+
         if new_password != confirm_password:
             print("❌ Wachtwoorden komen niet overeen.")
             pause()
             return
-        
+
         success, message = change_own_password(username, old_password, new_password)
         if success:
             print(f"\n✅ {message}")
@@ -2162,7 +2201,7 @@ def change_password_menu(username: str, role: str):
             print(f"\n❌ {message}")
     except Exception as e:
         print(f"❌ Fout bij wijzigen wachtwoord: {e}")
-    
+
     pause()
 
 # ============================================================================
@@ -2273,36 +2312,68 @@ def main():
     while True:
         clear_screen()
         show_header("Urban Mobility Backend System - Inloggen", False)
-        
+
         print("🔐 Voor demonstratie doeleinden:")
         print("   Username: super_admin")
         print("   Password: Admin_123?")
         print()
         print("1. Inloggen")
         print("2. Afsluiten")
-        
+
         choice = input("\nKies een optie (1-2): ")
-        
+
         if choice == "1":
-            username = input("Gebruikersnaam: ").strip()
-            if not username:
-                print("❌ Gebruikersnaam is verplicht")
-                pause()
-                continue
-                
-            password = input("Wachtwoord: ")
-            if not password:
-                print("❌ Wachtwoord is verplicht")
-                pause()
-                continue
-            
-            result = login(username, password)
-            if result:
-                role, actual_username = result
-                print(f"\n✅ Welkom {actual_username}!")
-                print(f"🎭 Rol: {role}")
-                pause()
-                
+            # FIX: Max 3 login attempts
+            max_login_attempts = 3
+            login_success = False
+
+            for attempt in range(1, max_login_attempts + 1):
+                print(f"\n📝 Login poging {attempt}/{max_login_attempts}")
+
+                username = input("Gebruikersnaam: ").strip()
+                if not username:
+                    print("❌ Gebruikersnaam is verplicht")
+                    if attempt < max_login_attempts:
+                        print(f"Nog {max_login_attempts - attempt} poging(en).")
+                        continue
+                    else:
+                        print("❌ Maximum aantal pogingen bereikt.")
+                        log_event("Max login attempts - empty username", "", "Meerdere lege gebruikersnaam pogingen", suspicious=True)
+                        pause()
+                        break
+
+                # FIX: Use getpass for password masking
+                password = getpass.getpass("Wachtwoord: ")
+                if not password:
+                    print("❌ Wachtwoord is verplicht")
+                    if attempt < max_login_attempts:
+                        print(f"Nog {max_login_attempts - attempt} poging(en).")
+                        continue
+                    else:
+                        print("❌ Maximum aantal pogingen bereikt.")
+                        log_event("Max login attempts - empty password", "", "Meerdere lege wachtwoord pogingen", suspicious=True)
+                        pause()
+                        break
+
+                result = login(username, password)
+                if result:
+                    role, actual_username = result
+                    print(f"\n✅ Welkom {actual_username}!")
+                    print(f"🎭 Rol: {role}")
+                    pause()
+                    login_success = True
+                    break  # Exit login loop
+                else:
+                    print("\n❌ Login mislukt. Controleer gebruikersnaam en wachtwoord.")
+                    if attempt < max_login_attempts:
+                        print(f"🔄 Probeer het opnieuw. Nog {max_login_attempts - attempt} poging(en).")
+                    else:
+                        print("❌ Maximum aantal login pogingen bereikt.")
+                        log_event("Max login attempts exceeded", "", f"Laatste poging gebruikersnaam: {username}", suspicious=True)
+                        pause()
+
+            # If login successful, enter main menu
+            if login_success:
                 # Main menu loop
                 while True:
                     action = show_main_menu(actual_username, role)

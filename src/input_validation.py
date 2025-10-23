@@ -356,16 +356,66 @@ def validate_brand_model(text: str) -> bool:
     
     return bool(re.fullmatch(r"[A-Za-z0-9\s\-_.]{1,50}", text.strip()))
 
+def detect_injection_attempts(input_str: str) -> tuple[bool, str]:
+    """
+    Detect injection attacks in user input
+    Returns: (is_safe: bool, reason: str)
+    """
+    if not input_str:
+        return True, "Empty input"
+
+    # 1. SQL Injection patterns
+    sql_patterns = [
+        r"(\bOR\b|\bAND\b)\s+\d+\s*=\s*\d+",  # OR 1=1, AND 1=1
+        r";\s*(DROP|DELETE|UPDATE|INSERT|ALTER|EXEC|EXECUTE)\s+",  # ; DROP TABLE
+        r"--",  # SQL comments
+        r"/\*.*\*/",  # SQL multi-line comments
+        r"\bUNION\b.*\bSELECT\b",  # UNION SELECT
+        r"\bexec\s*\(",  # exec(
+        r"\bxp_cmdshell\b",  # xp_cmdshell
+        r"'\s*(OR|AND)\s*'",  # ' OR ', ' AND '
+    ]
+
+    for pattern in sql_patterns:
+        if re.search(pattern, input_str, re.IGNORECASE):
+            return False, "Possible SQL injection detected"
+
+    # 2. Path traversal
+    if re.search(r"\.\.[/\\]", input_str):
+        return False, "Path traversal attempt detected"
+
+    # 3. Command injection (alleen als het verdachte tekens zijn in verkeerde context)
+    cmd_chars = ['|', '$', '`', '\n', '\r']
+    if any(char in input_str for char in cmd_chars):
+        return False, "Command injection characters detected"
+
+    # 4. Null byte injection
+    if '\x00' in input_str:
+        return False, "Null byte detected"
+
+    # 5. Script injection
+    if re.search(r"<script|javascript:|onerror=|onclick=", input_str, re.IGNORECASE):
+        return False, "Script injection detected"
+
+    return True, "Input is safe"
+
 def sanitize_input(text: str) -> str:
     """
-    Basic input sanitization to prevent injection attacks
+    Enhanced input sanitization with injection detection
     """
     if not text:
         return ""
-    
+
+    # FIX: Check for injection attempts FIRST
+    is_safe, reason = detect_injection_attempts(str(text))
+    if not is_safe:
+        # Log suspicious activity but don't import here to avoid circular dependency
+        # This will be logged at the UI level
+        raise ValueError(f"Security violation: {reason}")
+
     # Remove null bytes and control characters
     sanitized = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', str(text))
-    
+
     # Limit length
     return sanitized[:1000]
 
@@ -418,22 +468,60 @@ def get_validation_error_message(field: str, value: str) -> str:
     }
     return error_messages.get(field, f'Ongeldige waarde voor {field}: {value}')
 
-def get_validated_input_with_back(prompt: str, validator_func, validation_type: str, allow_empty: bool = False) -> str:
+def get_validated_input_with_back(prompt: str, validator_func, validation_type: str, allow_empty: bool = False, max_attempts: int = 3) -> str:
     """
-    Get validated input from user with retry on invalid input and back option
-    Returns None if user wants to go back
+    Get validated input from user with maximum attempts and back option
+    Returns None if user wants to go back OR max attempts reached
+
+    Args:
+        prompt: The prompt to show user
+        validator_func: Function to validate input
+        validation_type: Type of validation for error messages
+        allow_empty: Whether empty input is allowed
+        max_attempts: Maximum number of attempts (default 3)
+
+    Returns:
+        Validated input string or None if back/failed
     """
-    while True:
-        value = input(f"{prompt}: ").strip()
-        
+    for attempt in range(1, max_attempts + 1):
+        # Show attempt counter if more than 1 attempt allowed
+        if max_attempts > 1:
+            attempt_info = f" (poging {attempt}/{max_attempts})"
+        else:
+            attempt_info = ""
+
+        value = input(f"{prompt}{attempt_info}: ").strip()
+
+        # Check back command
         if check_back_command(value):
             return None
-        
+
+        # Check if empty is allowed
         if allow_empty and not value:
             return ""
-        
+
+        # FIX: Check for injection attempts
+        try:
+            is_safe, reason = detect_injection_attempts(value)
+            if not is_safe:
+                print(f"🚨 SECURITY WAARSCHUWING: {reason}")
+                print(f"❌ Ongeldige invoer gedetecteerd. Dit incident wordt gelogd.")
+                # Don't count as normal attempt, immediately return None
+                return None
+        except:
+            pass  # Continue with normal validation
+
+        # Validate input
         if validator_func(value):
             return value
         else:
-            print(f"❌ {get_validation_error_message(validation_type, value)}")
-            print("Probeer opnieuw.")
+            error_msg = get_validation_error_message(validation_type, value)
+            print(f"❌ {error_msg}")
+
+            if attempt < max_attempts:
+                print(f"Probeer opnieuw. Nog {max_attempts - attempt} poging(en).")
+            else:
+                print(f"❌ Maximum aantal pogingen ({max_attempts}) bereikt.")
+                return None  # Failed after max attempts
+
+    return None
