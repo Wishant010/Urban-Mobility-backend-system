@@ -254,8 +254,9 @@ def validate_birthday_dutch(birthday: str) -> bool:
 def validate_gender(gender: str) -> bool:
     """
     Validate gender (male or female)
+    FIX 9: No input modification - only accept exact match (case-sensitive)
     """
-    return gender.lower() in ['male', 'female', 'm', 'f', 'man', 'vrouw']
+    return gender in ['male', 'female']
 
 def validate_city(city: str) -> bool:
     """
@@ -436,8 +437,9 @@ def validate_search_term(search_term: str) -> bool:
 def check_back_command(user_input: str) -> bool:
     """
     Check if user wants to go back
+    FIX 9: Use casefold() for comparison without modifying original input
     """
-    return user_input.lower().strip() in ['terug', 'back', 'b', 't', 'exit', 'quit']
+    return user_input.casefold() in ['terug', 'back', 'b', 't', 'exit', 'quit']
 
 # Validation helper functions
 def get_validation_error_message(field: str, value: str) -> str:

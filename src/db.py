@@ -162,15 +162,19 @@ def add_user(username, password_hash, role, first_name, last_name):
             c = conn.cursor()
             # Encrypt sensitive data
             encrypted_username = encrypt_data(username)
+            # FIX: SQL Query Logging for audit trail
+            log_event(f"SQL INSERT executed", "", f"Table: users, Username: {username}, Role: {role}")
             c.execute('''INSERT INTO users (username, password_hash, role, first_name, last_name, registration_date)
                         VALUES (?, ?, ?, ?, ?, ?)''',
                       (encrypted_username, password_hash, role, first_name, last_name, datetime.now().isoformat()))
             conn.commit()
         return True
     except sqlite3.IntegrityError:
+        log_event(f"SQL INSERT failed", "", f"Table: users, Username: {username}, Reason: Duplicate", suspicious=True)
         return False
     except Exception as e:
         print(f"Error adding user: {e}")
+        log_event(f"SQL INSERT failed", "", f"Table: users, Error: {str(e)}", suspicious=True)
         return False
 
 def get_all_users():
@@ -208,34 +212,47 @@ def get_all_users():
 def update_user(username, **kwargs):
     """Update user information - supports all fields including role"""
     try:
+        # FIX: SQL Injection Prevention - Explicit field whitelist (already present, enhanced with logging)
+        allowed_fields = ['first_name', 'last_name', 'role']
+
         # Find the actual stored username (encrypted or unencrypted)
         row = _find_user_row(username)
         if not row:
             return False
-            
+
         stored_username = row[0]  # Use the actual stored username
-        
+
         with get_db() as conn:
             c = conn.cursor()
             update_fields = []
             values = []
-            
+
             # Handle all possible update fields
             for field, value in kwargs.items():
-                if field in ['first_name', 'last_name', 'role']:
-                    update_fields.append(f"{field}=?")
-                    values.append(value)
-            
+                # FIX: Validate field name against whitelist (SQL injection prevention)
+                if field not in allowed_fields:
+                    print(f"Security warning: Attempt to update invalid field '{field}' blocked")
+                    log_event(f"Invalid field update attempt", "", f"Field: {field}, Table: users", suspicious=True)
+                    continue
+
+                update_fields.append(f"{field}=?")
+                values.append(value)
+
             if not update_fields:
                 return False
-                
+
             values.append(stored_username)
             query = f"UPDATE users SET {', '.join(update_fields)} WHERE username=?"
+
+            # FIX: SQL Query Logging for audit trail
+            log_event(f"SQL UPDATE executed", "", f"Table: users, Fields: {', '.join([f.split('=')[0] for f in update_fields])}, Username: {username}")
+
             c.execute(query, values)
             conn.commit()
             return c.rowcount > 0
     except Exception as e:
         print(f"Error updating user: {e}")
+        log_event(f"SQL UPDATE failed", "", f"Table: users, Error: {str(e)}", suspicious=True)
         return False
 
 def delete_user(username):
@@ -245,16 +262,19 @@ def delete_user(username):
         row = _find_user_row(username)
         if not row:
             return False
-            
+
         stored_username = row[0]  # Use the actual stored username
-        
+
         with get_db() as conn:
             c = conn.cursor()
+            # FIX: SQL Query Logging for audit trail
+            log_event(f"SQL DELETE executed", "", f"Table: users, Username: {username}")
             c.execute('DELETE FROM users WHERE username=?', (stored_username,))
             conn.commit()
         return c.rowcount > 0
     except Exception as e:
         print(f"Error deleting user: {e}")
+        log_event(f"SQL DELETE failed", "", f"Table: users, Error: {str(e)}", suspicious=True)
         return False
 
 def reset_user_password(username, new_password_hash):
@@ -452,12 +472,13 @@ def search_travellers(search_term):
     try:
         travellers = get_all_travellers()
         results = []
-        search_lower = search_term.lower()
-        
+        # FIX 9: Use casefold() for case-insensitive comparison without modifying data
+        search_folded = search_term.casefold()
+
         for traveller in travellers:
             # Search in multiple fields
-            searchable_text = f"{traveller['first_name']} {traveller['last_name']} {traveller['customer_id']} {traveller['email_address']}".lower()
-            if search_lower in searchable_text:
+            searchable_text = f"{traveller['first_name']} {traveller['last_name']} {traveller['customer_id']} {traveller['email_address']}".casefold()
+            if search_folded in searchable_text:
                 results.append(traveller)
         return results
     except Exception as e:
@@ -467,28 +488,49 @@ def search_travellers(search_term):
 def update_traveller(customer_id, **kwargs):
     """Update traveller information"""
     try:
+        # FIX: SQL Injection Prevention - Explicit field whitelist for defence-in-depth
+        allowed_fields = [
+            'first_name', 'last_name', 'birthday', 'gender',
+            'street_name', 'house_number', 'zip_code', 'city',
+            'email_address', 'mobile_phone', 'driving_license_number'
+        ]
+
         with get_db() as conn:
             c = conn.cursor()
             update_fields = []
             values = []
-            
+
             for field, value in kwargs.items():
+                # FIX: Validate field name against whitelist (SQL injection prevention)
+                if field not in allowed_fields:
+                    print(f"Security warning: Attempt to update invalid field '{field}' blocked")
+                    log_event(f"Invalid field update attempt", "", f"Field: {field}, Table: travellers", suspicious=True)
+                    continue
+
                 if field in ['street_name', 'house_number', 'email_address', 'mobile_phone']:
                     # Encrypt sensitive fields
                     values.append(encrypt_data(value))
                 else:
                     values.append(value)
                 update_fields.append(f"{field}=?")
-            
+
+            if not update_fields:
+                return False
+
             values.append(customer_id)
             query = f"UPDATE travellers SET {', '.join(update_fields)} WHERE customer_id=?"
+
+            # FIX: SQL Query Logging for audit trail
+            log_event(f"SQL UPDATE executed", "", f"Table: travellers, Fields: {', '.join([f.split('=')[0] for f in update_fields])}, ID: {customer_id}")
+
             c.execute(query, values)
             conn.commit()
-            
+
             # Check if any rows were affected
             return c.rowcount > 0
     except Exception as e:
         print(f"Error updating traveller: {e}")
+        log_event(f"SQL UPDATE failed", "", f"Table: travellers, Error: {str(e)}", suspicious=True)
         return False
 
 def delete_traveller(customer_id):
@@ -496,13 +538,16 @@ def delete_traveller(customer_id):
     try:
         with get_db() as conn:
             c = conn.cursor()
+            # FIX: SQL Query Logging for audit trail
+            log_event(f"SQL DELETE executed", "", f"Table: travellers, ID: {customer_id}")
             c.execute('DELETE FROM travellers WHERE customer_id=?', (customer_id,))
             conn.commit()
-            
+
             # Check if any rows were affected
             return c.rowcount > 0
     except Exception as e:
         print(f"Error deleting traveller: {e}")
+        log_event(f"SQL DELETE failed", "", f"Table: travellers, Error: {str(e)}", suspicious=True)
         return False
 
 # ============================================================================
@@ -632,11 +677,12 @@ def search_scooters(search_term):
     try:
         scooters = get_all_scooters()
         results = []
-        search_lower = search_term.lower()
-        
+        # FIX 9: Use casefold() for case-insensitive comparison without modifying data
+        search_folded = search_term.casefold()
+
         for scooter in scooters:
-            searchable_text = f"{scooter['brand']} {scooter['model']} {scooter['serial_number']}".lower()
-            if search_lower in searchable_text:
+            searchable_text = f"{scooter['brand']} {scooter['model']} {scooter['serial_number']}".casefold()
+            if search_folded in searchable_text:
                 results.append(scooter)
         return results
     except Exception as e:
@@ -649,35 +695,52 @@ def update_scooter(serial_number, user_role, **kwargs):
     # FIX: Added target_range_soc to service_engineer_fields (per requirements Table 3)
     service_engineer_fields = ['state_of_charge', 'target_range_soc', 'location', 'out_of_service_status', 'mileage', 'last_maintenance_date']
     admin_fields = service_engineer_fields + ['brand', 'model', 'top_speed', 'battery_capacity']
-    
+
+    # FIX: SQL Injection Prevention - Complete field whitelist for all possible scooter fields
+    all_allowed_fields = ['brand', 'model', 'top_speed', 'battery_capacity', 'state_of_charge',
+                          'target_range_soc', 'location', 'out_of_service_status', 'mileage', 'last_maintenance_date']
+
     try:
         with get_db() as conn:
             c = conn.cursor()
             update_fields = []
             values = []
-            
+
             for field, value in kwargs.items():
+                # FIX: First check if field is valid at all (SQL injection prevention)
+                if field not in all_allowed_fields:
+                    print(f"Security warning: Attempt to update invalid field '{field}' blocked")
+                    log_event(f"Invalid field update attempt", "", f"Field: {field}, Table: scooters, Role: {user_role}", suspicious=True)
+                    continue
+
                 # Check role permissions
                 if user_role == 'service_engineer' and field not in service_engineer_fields:
+                    log_event(f"Permission denied", "", f"Field: {field}, Table: scooters, Role: {user_role}")
                     continue
                 elif user_role in ['system_admin', 'super_admin'] and field not in admin_fields:
+                    log_event(f"Permission denied", "", f"Field: {field}, Table: scooters, Role: {user_role}")
                     continue
-                
+
                 values.append(value)
                 update_fields.append(f"{field}=?")
-            
+
             if not update_fields:
                 return False
-                
+
             values.append(serial_number)
             query = f"UPDATE scooters SET {', '.join(update_fields)} WHERE serial_number=?"
+
+            # FIX: SQL Query Logging for audit trail
+            log_event(f"SQL UPDATE executed", "", f"Table: scooters, Fields: {', '.join([f.split('=')[0] for f in update_fields])}, Serial: {serial_number}, Role: {user_role}")
+
             c.execute(query, values)
             conn.commit()
-            
+
             # Check if any rows were affected
             return c.rowcount > 0
     except Exception as e:
         print(f"Error updating scooter: {e}")
+        log_event(f"SQL UPDATE failed", "", f"Table: scooters, Error: {str(e)}", suspicious=True)
         return False
 
 def delete_scooter(serial_number):
@@ -685,13 +748,16 @@ def delete_scooter(serial_number):
     try:
         with get_db() as conn:
             c = conn.cursor()
+            # FIX: SQL Query Logging for audit trail
+            log_event(f"SQL DELETE executed", "", f"Table: scooters, Serial: {serial_number}")
             c.execute('DELETE FROM scooters WHERE serial_number=?', (serial_number,))
             conn.commit()
-            
+
             # Check if any rows were affected
             return c.rowcount > 0
     except Exception as e:
         print(f"Error deleting scooter: {e}")
+        log_event(f"SQL DELETE failed", "", f"Table: scooters, Error: {str(e)}", suspicious=True)
         return False
 
 # ============================================================================

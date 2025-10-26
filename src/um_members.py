@@ -373,7 +373,8 @@ def update_existing_user(current_username: str, current_role: str):
         user_to_update = None
         
         for u in users:
-            if u['username'].lower() == username.lower():
+            # FIX 9: Use casefold() for case-insensitive comparison
+            if u['username'].casefold() == username.casefold():
                 user_to_update = u
                 break
         
@@ -470,7 +471,8 @@ def delete_existing_user(current_username: str, current_role: str):
         return
     
     # Check if user wants to delete themselves
-    is_self_deletion = username.lower() == current_username.lower()
+    # FIX 9: Use casefold() for case-insensitive comparison
+    is_self_deletion = username.casefold() == current_username.casefold()
     
     # Super admin cannot delete themselves, but system admin can
     if is_self_deletion and current_role == 'super_admin':
@@ -484,7 +486,8 @@ def delete_existing_user(current_username: str, current_role: str):
         user_to_delete = None
         
         for u in users:
-            if u['username'].lower() == username.lower():
+            # FIX 9: Use casefold() for case-insensitive comparison
+            if u['username'].casefold() == username.casefold():
                 user_to_delete = u
                 break
         
@@ -508,9 +511,9 @@ def delete_existing_user(current_username: str, current_role: str):
             # First confirmation with retry loop
             while True:
                 confirm1 = input("\n⚠️  Weet je ZEKER dat je je eigen account wilt verwijderen? (typ 'ja zeker' of 'nee'): ").strip()
-                if confirm1.upper() == 'JA ZEKER':
+                if confirm1.strip().casefold() == 'JA ZEKER':
                     break  # Continue to next confirmation
-                elif confirm1.upper() == 'NEE' or confirm1.upper() == 'N':
+                elif confirm1.strip().casefold() == 'NEE' or confirm1.strip().casefold() == 'N':
                     print("Verwijdering geannuleerd")
                     pause()
                     return
@@ -523,7 +526,7 @@ def delete_existing_user(current_username: str, current_role: str):
                 confirm2 = input(f"\n⚠️  Laatste bevestiging: Typ je gebruikersnaam '{username}' om te bevestigen (of 'nee' om te annuleren): ").strip()
                 if confirm2 == username:
                     break  # Continue to deletion
-                elif confirm2.upper() == 'NEE' or confirm2.upper() == 'N':
+                elif confirm2.strip().casefold() == 'NEE' or confirm2.strip().casefold() == 'N':
                     print("Verwijdering geannuleerd")
                     pause()
                     return
@@ -532,7 +535,7 @@ def delete_existing_user(current_username: str, current_role: str):
                     continue
         else:
             # Regular confirmation for other users
-            confirm = input(f"\n⚠️  Weet je zeker dat je gebruiker {name} ({username}) wilt verwijderen? (ja/nee): ").strip().lower()
+            confirm = input(f"\n⚠️  Weet je zeker dat je gebruiker {name} ({username}) wilt verwijderen? (ja/nee): ").strip().casefold()
             
             if confirm not in ['ja', 'j', 'yes', 'y']:
                 print("Verwijdering geannuleerd")
@@ -707,10 +710,10 @@ def create_traveller_menu(username: str):
         birthday = convert_flexible_date_to_iso(birthday)
         
         # Gender validation with options
-        print("\nGeslacht opties: male, female, m, f, man, vrouw")
-        gender = get_validated_input_with_back("Geslacht", validate_gender, "gender")
+        print("\nGeslacht opties: male, female")
+        gender = get_validated_input_with_back("Geslacht (male of female)", validate_gender, "gender")
         if gender is None: return
-        gender = 'male' if gender.lower() in ['male', 'm', 'man'] else 'female'
+        # FIX 9: No input modification - store exactly as entered
         
         street_name = get_validated_input_with_back("Straatnaam", validate_street_name, "name")
         if street_name is None: return
@@ -718,9 +721,9 @@ def create_traveller_menu(username: str):
         house_number = get_validated_input_with_back("Huisnummer", validate_house_number, "house_number")
         if house_number is None: return
         
-        zip_code = get_validated_input_with_back("Postcode (1234AB)", validate_zip_code, "zip_code")
+        zip_code = get_validated_input_with_back("Postcode (1234AB - uppercase letters)", validate_zip_code, "zip_code")
         if zip_code is None: return
-        zip_code = zip_code.upper()
+        # FIX 9: No input modification - validation requires uppercase
         
         # Show available cities
         cities = get_valid_cities()
@@ -734,9 +737,9 @@ def create_traveller_menu(username: str):
         mobile_phone = get_validated_input_with_back("Mobiel (8 cijfers, +31-6- wordt toegevoegd)", validate_mobile_phone, "mobile_phone")
         if mobile_phone is None: return
         
-        license_number = get_validated_input_with_back("Rijbewijsnummer (XXDDDDDDD of XDDDDDDDD)", validate_driving_license, "driving_license")
+        license_number = get_validated_input_with_back("Rijbewijsnummer (XXDDDDDDD of XDDDDDDDD - uppercase letters)", validate_driving_license, "driving_license")
         if license_number is None: return
-        license_number = license_number.upper()
+        # FIX 9: No input modification - validation requires uppercase
         
         # Final validation before adding traveller
         if not all([first_name, last_name, birthday, gender, street_name, house_number, zip_code, city, email, mobile_phone, license_number]):
@@ -856,10 +859,11 @@ def update_traveller_menu(username: str):
             if not new_gender:
                 break
             elif validate_gender(new_gender):
-                updates['gender'] = 'male' if new_gender.lower() in ['male', 'm', 'man'] else 'female'
+                # FIX 9: No input modification - store exactly as entered
+                updates['gender'] = new_gender
                 break
             else:
-                print("❌ Ongeldig geslacht. Gebruik male, female, m, f, man, of vrouw.")
+                print("❌ Ongeldig geslacht. Gebruik male of female.")
         
         # Street name validation
         while True:
@@ -898,7 +902,8 @@ def update_traveller_menu(username: str):
             if not new_zip:
                 break
             elif validate_zip_code(new_zip):
-                updates['zip_code'] = new_zip.upper()
+                # FIX 9: No input modification - validation requires uppercase
+                updates['zip_code'] = new_zip
                 break
             else:
                 print("❌ Ongeldige postcode. Gebruik formaat 1234AB.")
@@ -955,7 +960,8 @@ def update_traveller_menu(username: str):
             if not new_license:
                 break
             elif validate_driving_license(new_license):
-                updates['driving_license_number'] = new_license.upper()
+                # FIX 9: No input modification - validation requires uppercase
+                updates['driving_license_number'] = new_license
                 break
             else:
                 print("❌ Ongeldig rijbewijsnummer. Gebruik formaat XXDDDDDDD of XDDDDDDDD.")
@@ -1017,7 +1023,7 @@ def delete_traveller_menu(username: str):
         
         # Confirmation
         name = f"{traveller_to_delete['first_name']} {traveller_to_delete['last_name']}"
-        confirm = input(f"\n⚠️  Weet je zeker dat je reiziger {name} (ID: {customer_id}) wilt verwijderen? (ja/nee): ").strip().lower()
+        confirm = input(f"\n⚠️  Weet je zeker dat je reiziger {name} (ID: {customer_id}) wilt verwijderen? (ja/nee): ").strip().casefold()
         
         if confirm not in ['ja', 'j', 'yes', 'y']:
             print("Verwijdering geannuleerd")
@@ -1454,7 +1460,7 @@ def update_scooter_menu(username: str, role: str):
         # Service status
         if 'out_of_service_status' in allowed_fields:
             current_status = "buiten dienst" if current_scooter['out_of_service_status'] else "in dienst"
-            new_status = input(f"Status ({current_status}) - voer 'uit' in voor buiten dienst, 'in' voor in dienst: ").strip().lower()
+            new_status = input(f"Status ({current_status}) - voer 'uit' in voor buiten dienst, 'in' voor in dienst: ").strip().casefold()
             if check_back_command(new_status):
                 return
             if new_status in ['uit', 'buiten', 'out']:
@@ -1550,7 +1556,7 @@ def delete_scooter_menu(username: str):
         
         # Confirmation
         brand_model = f"{scooter_to_delete['brand']} {scooter_to_delete['model']}"
-        confirm = input(f"\n⚠️  Weet je zeker dat je scooter {brand_model} (serienummer: {serial_number}) wilt verwijderen? (ja/nee): ").strip().lower()
+        confirm = input(f"\n⚠️  Weet je zeker dat je scooter {brand_model} (serienummer: {serial_number}) wilt verwijderen? (ja/nee): ").strip().casefold()
         
         if confirm not in ['ja', 'j', 'yes', 'y']:
             print("Verwijdering geannuleerd")
@@ -1703,7 +1709,7 @@ def restore_from_backup_interactive(username: str, role: str):
                 return
         
         # Confirm restore
-        confirm = input(f"⚠️  Weet je zeker dat je backup {selected_backup} wilt herstellen?\nDit overschrijft de huidige data! (ja/nee): ").strip().lower()
+        confirm = input(f"⚠️  Weet je zeker dat je backup {selected_backup} wilt herstellen?\nDit overschrijft de huidige data! (ja/nee): ").strip().casefold()
         
         if confirm not in ['ja', 'j', 'yes', 'y']:
             print("Restore geannuleerd.")
@@ -1759,7 +1765,7 @@ def delete_backup_interactive(username: str):
         selected_backup = backups[choice]['filename']
         
         # Confirm deletion
-        confirm = input(f"⚠️  Weet je zeker dat je backup {selected_backup} wilt verwijderen? (ja/nee): ").strip().lower()
+        confirm = input(f"⚠️  Weet je zeker dat je backup {selected_backup} wilt verwijderen? (ja/nee): ").strip().casefold()
         
         if confirm not in ['ja', 'j', 'yes', 'y']:
             print("Verwijdering geannuleerd.")
@@ -1917,7 +1923,8 @@ def revoke_restore_code_interactive_menu(username: str):
     clear_screen()
     show_header("Restore-Code Intrekken")
     
-    code = input("Restore-code om in te trekken: ").strip().upper()
+    code = input("Restore-code om in te trekken (uppercase): ").strip()
+    # FIX 9: No input modification - user must enter uppercase
     
     if check_back_command(code):
         return
@@ -1942,7 +1949,7 @@ def revoke_restore_code_interactive_menu(username: str):
         print(f"📅 Aangemaakt: {code_info['created_date'][:10]}")
         
         # Confirmation
-        confirm = input("⚠️  Weet je zeker dat je deze code wilt intrekken? (ja/nee): ").strip().lower()
+        confirm = input("⚠️  Weet je zeker dat je deze code wilt intrekken? (ja/nee): ").strip().casefold()
         
         if confirm not in ['ja', 'j', 'yes', 'y']:
             print("Intrekking geannuleerd")
@@ -2044,7 +2051,7 @@ def view_logs_menu(username: str, role: str):
                 print(f"  {option}")
             
             # Get user choice
-            choice = input("\nKies een optie: ").strip().lower()
+            choice = input("\nKies een optie: ").strip().casefold()
             
             if choice == 't' or check_back_command(choice):
                 break
