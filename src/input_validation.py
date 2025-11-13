@@ -1,80 +1,60 @@
+"""
+Input Validatie Module - Urban Mobility Backend
+STRICT WHITELISTING - geen input modificatie!
+"""
+
 import re
 from datetime import datetime
 
 def validate_username(username: str) -> bool:
-    """
-    Validate username according to requirements:
-    - 8-10 characters
-    - Start with letter or underscore
-    - Can contain letters, numbers, underscores, apostrophes, periods
-    - Case insensitive
-    """
+    """Valideer gebruikersnaam: 8-10 tekens, begint met letter/underscore"""
     if not username or len(username) < 8 or len(username) > 10:
         return False
-    
-    # Must start with letter or underscore
+
+    # Moet beginnen met letter of underscore
     if not re.match(r'^[A-Za-z_]', username):
         return False
-    
-    # Can only contain allowed characters
+
+    # Mag alleen toegestane karakters bevatten
     if not re.fullmatch(r"[A-Za-z0-9_'.]{8,10}", username):
         return False
-    
+
     return True
 
 def validate_password(password: str) -> bool:
-    """
-    Validate password according to requirements:
-    - 12-30 characters
-    - At least one lowercase letter
-    - At least one uppercase letter  
-    - At least one digit
-    - At least one special character from ~!@#$%&_-+=`|\(){}[]:;'<>,.?/
-    """
+    """Valideer wachtwoord: 12-30 tekens, uppercase, lowercase, cijfer, speciaal teken"""
     if not password or len(password) < 12 or len(password) > 30:
         return False
-    
-    # Check for required character types
-    has_lower = bool(re.search(r'[a-z]', password))
-    has_upper = bool(re.search(r'[A-Z]', password))
-    has_digit = bool(re.search(r'\d', password))
-    has_special = bool(re.search(r'[~!@#$%&_\-+=`|\\(){}[\]:;\'<>,.?/]', password))
-    
+
+    # Controleer voor verplichte karaktertypes
+    has_lower = bool(re.search(r'[a-z]', password))  # Minimaal 1 kleine letter
+    has_upper = bool(re.search(r'[A-Z]', password))  # Minimaal 1 hoofdletter
+    has_digit = bool(re.search(r'\d', password))     # Minimaal 1 cijfer
+    has_special = bool(re.search(r'[~!@#$%&_\-+=`|\\(){}[\]:;\'<>,.?/]', password))  # Minimaal 1 speciaal teken
+
     return has_lower and has_upper and has_digit and has_special
 
 def validate_zip_code(zipcode: str) -> bool:
-    """
-    Validate Dutch zip code format: DDDDXX (4 digits + 2 uppercase letters)
-    """
+    """Valideer postcode format: DDDDXX (4 cijfers + 2 hoofdletters)"""
     return bool(re.fullmatch(r'[1-9][0-9]{3}[A-Z]{2}', zipcode))
 
 def validate_mobile_phone(phone: str) -> bool:
-    """
-    Validate mobile phone format: DDDDDDDD (8 digits)
-    Note: +31-6- prefix is added automatically
-    """
+    """Valideer mobiel nummer: 8 cijfers (+31-6- wordt automatisch toegevoegd)"""
     return bool(re.fullmatch(r'[0-9]{8}', phone))
 
 def validate_driving_license(license_number: str) -> bool:
-    """
-    Validate driving license format: XXDDDDDDD or XDDDDDDDD
-    """
-    pattern1 = r'[A-Z]{2}[0-9]{7}'  # XXDDDDDDD
-    pattern2 = r'[A-Z][0-9]{8}'     # XDDDDDDDD
+    """Valideer rijbewijs: XXDDDDDDD of XDDDDDDDD formaat"""
+    pattern1 = r'[A-Z]{2}[0-9]{7}'  # XXDDDDDDD (2 letters + 7 cijfers)
+    pattern2 = r'[A-Z][0-9]{8}'     # XDDDDDDDD (1 letter + 8 cijfers)
     return bool(re.fullmatch(pattern1, license_number) or re.fullmatch(pattern2, license_number))
 
 def validate_email(email: str) -> bool:
-    """
-    Validate email format
-    """
+    """Valideer email format met regex"""
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return bool(re.fullmatch(pattern, email))
 
 def validate_gps_coordinates(latitude: str, longitude: str) -> bool:
-    """
-    Validate GPS coordinates for Rotterdam region with 5 decimal places
-    Rotterdam latitude: ~51.9225, longitude: ~4.47917
-    """
+    """Valideer GPS coördinaten voor Rotterdam (5 decimalen)"""
     try:
         lat = float(latitude)
         lon = float(longitude)
@@ -92,10 +72,7 @@ def validate_gps_coordinates(latitude: str, longitude: str) -> bool:
         return False
 
 def validate_flexible_gps_coordinate(coord_str: str, coord_type: str) -> bool:
-    """
-    Flexible GPS coordinate validation
-    coord_type: 'lat' for latitude, 'lon' for longitude
-    """
+    """Valideer GPS coördinaat flexibel (lat/lon voor Nederland gebied)"""
     if not coord_str:
         return False
     
@@ -114,17 +91,13 @@ def validate_flexible_gps_coordinate(coord_str: str, coord_type: str) -> bool:
         return False
 
 def validate_serial_number(serial: str) -> bool:
-    """
-    Validate scooter serial number: 10-17 alphanumeric characters
-    """
+    """Valideer scooter serienummer: 10-17 alfanumerieke tekens"""
     if not serial or len(serial) < 10 or len(serial) > 17:
         return False
     return bool(re.fullmatch(r'[A-Za-z0-9]{10,17}', serial))
 
 def validate_date_iso(date_str: str) -> bool:
-    """
-    Validate date in ISO 8601 format: YYYY-MM-DD
-    """
+    """Valideer datum in ISO formaat: YYYY-MM-DD"""
     try:
         datetime.strptime(date_str, '%Y-%m-%d')
         return True
@@ -132,9 +105,7 @@ def validate_date_iso(date_str: str) -> bool:
         return False
 
 def validate_date_dutch(date_str: str) -> bool:
-    """
-    Validate date in Dutch format: DD-MM-YYYY
-    """
+    """Valideer datum in Nederlands formaat: DD-MM-YYYY"""
     try:
         datetime.strptime(date_str, '%d-%m-%Y')
         return True
@@ -142,10 +113,7 @@ def validate_date_dutch(date_str: str) -> bool:
         return False
 
 def validate_flexible_date(date_str: str) -> bool:
-    """
-    Validate date in multiple flexible formats
-    Accepts: DD-MM-YYYY, DD/MM/YYYY, DD.MM.YYYY, DD-MM-YY, DD/MM/YY, DD.MM.YY
-    """
+    """Valideer datum in flexibele formaten (DD-MM-YYYY, DD/MM/YY, etc.)"""
     if not date_str:
         return False
     
@@ -177,9 +145,7 @@ def validate_flexible_date(date_str: str) -> bool:
     return False
 
 def convert_dutch_to_iso(dutch_date: str) -> str:
-    """
-    Convert Dutch date format (DD-MM-YYYY) to ISO format (YYYY-MM-DD)
-    """
+    """Converteer Nederlandse datum (DD-MM-YYYY) naar ISO (YYYY-MM-DD)"""
     try:
         date_obj = datetime.strptime(dutch_date, '%d-%m-%Y')
         return date_obj.strftime('%Y-%m-%d')
@@ -187,9 +153,7 @@ def convert_dutch_to_iso(dutch_date: str) -> str:
         return ""
 
 def convert_iso_to_dutch(iso_date: str) -> str:
-    """
-    Convert ISO date format (YYYY-MM-DD) to Dutch format (DD-MM-YYYY)
-    """
+    """Converteer ISO datum (YYYY-MM-DD) naar Nederlands (DD-MM-YYYY)"""
     try:
         date_obj = datetime.strptime(iso_date, '%Y-%m-%d')
         return date_obj.strftime('%d-%m-%Y')
@@ -197,9 +161,7 @@ def convert_iso_to_dutch(iso_date: str) -> str:
         return iso_date
 
 def convert_flexible_date_to_iso(date_str: str) -> str:
-    """
-    Convert flexible date format to ISO format (YYYY-MM-DD)
-    """
+    """Converteer flexibele datum naar ISO formaat (YYYY-MM-DD)"""
     if not date_str:
         return ""
     
@@ -224,9 +186,7 @@ def convert_flexible_date_to_iso(date_str: str) -> str:
     return ""
 
 def validate_birthday_dutch(birthday: str) -> bool:
-    """
-    Validate birthday date in Dutch format (must be in the past and reasonable)
-    """
+    """Valideer geboortedatum: 16-120 jaar oud, DD-MM-YYYY formaat"""
     if not validate_date_dutch(birthday):
         return False
     
@@ -252,16 +212,11 @@ def validate_birthday_dutch(birthday: str) -> bool:
         return False
 
 def validate_gender(gender: str) -> bool:
-    """
-    Validate gender (male or female)
-    FIX 9: No input modification - only accept exact match (case-sensitive)
-    """
+    """Valideer geslacht: 'male' of 'female' (case-sensitive)"""
     return gender in ['male', 'female']
 
 def validate_city(city: str) -> bool:
-    """
-    Validate city name (must be from predefined list)
-    """
+    """Valideer stad: alleen steden uit vaste whitelist"""
     valid_cities = [
         'Rotterdam', 'Amsterdam', 'Den Haag', 'Utrecht', 'Eindhoven',
         'Groningen', 'Tilburg', 'Almere', 'Breda', 'Nijmegen'
@@ -269,18 +224,14 @@ def validate_city(city: str) -> bool:
     return city in valid_cities
 
 def get_valid_cities() -> list:
-    """
-    Get list of valid city names
-    """
+    """Retourneer lijst van geldige steden"""
     return [
         'Rotterdam', 'Amsterdam', 'Den Haag', 'Utrecht', 'Eindhoven',
         'Groningen', 'Tilburg', 'Almere', 'Breda', 'Nijmegen'
     ]
 
 def validate_percentage(value: str) -> bool:
-    """
-    Validate percentage value (0-100)
-    """
+    """Valideer percentage waarde: 0-100"""
     try:
         val = int(value)
         return 0 <= val <= 100
@@ -288,9 +239,7 @@ def validate_percentage(value: str) -> bool:
         return False
 
 def validate_positive_integer(value: str) -> bool:
-    """
-    Validate positive integer
-    """
+    """Valideer positief geheel getal"""
     try:
         val = int(value)
         return val > 0
@@ -298,9 +247,7 @@ def validate_positive_integer(value: str) -> bool:
         return False
 
 def validate_positive_float(value: str) -> bool:
-    """
-    Validate positive float
-    """
+    """Valideer positief decimaal getal"""
     try:
         val = float(value)
         return val >= 0.0
@@ -308,9 +255,7 @@ def validate_positive_float(value: str) -> bool:
         return False
 
 def validate_soc_range(min_soc: str, max_soc: str) -> bool:
-    """
-    Validate State of Charge range (min should be less than max)
-    """
+    """Valideer batterij bereik: min < max, beide 0-100"""
     try:
         min_val = int(min_soc)
         max_val = int(max_soc)
@@ -319,49 +264,38 @@ def validate_soc_range(min_soc: str, max_soc: str) -> bool:
         return False
 
 def validate_name(name: str) -> bool:
-    """
-    Validate first/last name (basic validation)
-    """
-    if not name or len(name.strip()) < 1:
+    """Valideer naam: alleen letters, spaties, apostroffen, koppeltekens"""
+    if not name or len(name) < 1:
         return False
-    
+
     # Only letters, spaces, apostrophes, hyphens
-    return bool(re.fullmatch(r"[A-Za-z\s'\-]{1,50}", name.strip()))
+    return bool(re.fullmatch(r"[A-Za-z\s'\-]{1,50}", name))
 
 def validate_street_name(street: str) -> bool:
-    """
-    Validate street name
-    """
-    if not street or len(street.strip()) < 1:
+    """Valideer straatnaam: letters, cijfers, spaties, punt, koppelteken"""
+    if not street or len(street) < 1:
         return False
-    
+
     # Letters, numbers, spaces, common punctuation
-    return bool(re.fullmatch(r"[A-Za-z0-9\s.\-']{1,100}", street.strip()))
+    return bool(re.fullmatch(r"[A-Za-z0-9\s.\-']{1,100}", street))
 
 def validate_house_number(house_num: str) -> bool:
-    """
-    Validate house number (can include letters for apartments)
-    """
-    if not house_num or len(house_num.strip()) < 1:
+    """Valideer huisnummer: cijfers, optioneel gevolgd door letter"""
+    if not house_num or len(house_num) < 1:
         return False
-    
+
     # Numbers, possibly followed by letters
-    return bool(re.fullmatch(r'[0-9]+[A-Za-z]?', house_num.strip()))
+    return bool(re.fullmatch(r'[0-9]+[A-Za-z]?', house_num))
 
 def validate_brand_model(text: str) -> bool:
-    """
-    Validate brand/model name
-    """
-    if not text or len(text.strip()) < 1:
+    """Valideer merk/model: alfanumeriek met spaties, koppelteken, punt"""
+    if not text or len(text) < 1:
         return False
-    
-    return bool(re.fullmatch(r"[A-Za-z0-9\s\-_.]{1,50}", text.strip()))
+
+    return bool(re.fullmatch(r"[A-Za-z0-9\s\-_.]{1,50}", text))
 
 def detect_injection_attempts(input_str: str) -> tuple[bool, str]:
-    """
-    Detect injection attacks in user input
-    Returns: (is_safe: bool, reason: str)
-    """
+    """Detecteer SQL/XSS/command injection aanvallen - retourneert (veilig, reden)"""
     if not input_str:
         return True, "Empty input"
 
@@ -402,7 +336,9 @@ def detect_injection_attempts(input_str: str) -> tuple[bool, str]:
 
 def sanitize_input(text: str) -> str:
     """
+    LEGACY FUNCTION - NOT USED
     Enhanced input sanitization with injection detection
+    WARNING: This function modifies input and is not compliant with strict whitelisting
     """
     if not text:
         return ""
@@ -421,31 +357,26 @@ def sanitize_input(text: str) -> str:
     return sanitized[:1000]
 
 def validate_search_term(search_term: str) -> bool:
-    """
-    Validate search term (basic safety check)
-    """
-    if not search_term or len(search_term.strip()) < 1:
+    """Valideer zoekterm: alfanumeriek, spaties, basis leestekens (max 100 tekens)"""
+    if not search_term or len(search_term) < 1:
         return False
-    
+
     # Prevent excessively long search terms
     if len(search_term) > 100:
         return False
-    
+
     # Allow alphanumeric, spaces, and common punctuation
-    return bool(re.fullmatch(r"[A-Za-z0-9\s@.\-_']{1,100}", search_term.strip()))
+    return bool(re.fullmatch(r"[A-Za-z0-9\s@.\-_']{1,100}", search_term))
 
 def check_back_command(user_input: str) -> bool:
-    """
-    Check if user wants to go back
-    FIX 9: Use casefold() for comparison without modifying original input
-    """
-    return user_input.casefold() in ['terug', 'back', 'b', 't', 'exit', 'quit']
+    """Check terug-commando: strikte case-sensitive whitelist"""
+    return user_input in ['terug', 'back', 'b', 't', 'exit', 'quit',
+                          'Terug', 'Back', 'B', 'T', 'Exit', 'Quit',
+                          'TERUG', 'BACK', 'EXIT', 'QUIT']
 
 # Validation helper functions
 def get_validation_error_message(field: str, value: str) -> str:
-    """
-    Get appropriate error message for failed validation
-    """
+    """Retourneer passende foutmelding voor gefaalde validatie"""
     error_messages = {
         'username': 'Gebruikersnaam moet 8-10 tekens zijn, beginnen met letter/underscore, en mag alleen letters, cijfers, _, \', . bevatten',
         'password': 'Wachtwoord moet 12-30 tekens zijn met minimaal 1 kleine letter, 1 hoofdletter, 1 cijfer en 1 speciaal teken',
@@ -471,20 +402,7 @@ def get_validation_error_message(field: str, value: str) -> str:
     return error_messages.get(field, f'Ongeldige waarde voor {field}: {value}')
 
 def get_validated_input_with_back(prompt: str, validator_func, validation_type: str, allow_empty: bool = False, max_attempts: int = 3) -> str:
-    """
-    Get validated input from user with maximum attempts and back option
-    Returns None if user wants to go back OR max attempts reached
-
-    Args:
-        prompt: The prompt to show user
-        validator_func: Function to validate input
-        validation_type: Type of validation for error messages
-        allow_empty: Whether empty input is allowed
-        max_attempts: Maximum number of attempts (default 3)
-
-    Returns:
-        Validated input string or None if back/failed
-    """
+    """Vraag gevalideerde input met max pogingen en terug-optie - bevat injection detectie"""
     for attempt in range(1, max_attempts + 1):
         # Show attempt counter if more than 1 attempt allowed
         if max_attempts > 1:

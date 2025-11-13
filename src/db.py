@@ -6,17 +6,17 @@ from encryption import encrypt_data, decrypt_data
 DB_PATH = 'data/data.db'
 
 def ensure_data_dir():
-    """Ensure data directory exists"""
+    """Zorg dat data directory bestaat"""
     if not os.path.exists('data'):
         os.makedirs('data')
 
 def get_db():
-    """Get database connection"""
+    """Retourneer SQLite database connectie"""
     ensure_data_dir()
     return sqlite3.connect(DB_PATH)
 
 def init_db():
-    """Initialize database with all required tables"""
+    """Initialiseer database - maak alle tabellen (users, travellers, scooters, logs, restore_codes)"""
     with get_db() as conn:
         c = conn.cursor()
         
@@ -84,9 +84,9 @@ def init_db():
         
         conn.commit()
 
-# Helper function to find user by username (handles both encrypted and unencrypted)
+# Helper functie om user te vinden
 def _find_user_row(username):
-    """Find user row by username (handles encryption)"""
+    """Zoek gebruiker op username - handelt encryptie en STRICT case-sensitive matching"""
     with get_db() as conn:
         c = conn.cursor()
         c.execute('SELECT username, password_hash, role, first_name, last_name, registration_date FROM users')
@@ -96,12 +96,12 @@ def _find_user_row(username):
             try:
                 # Try to decrypt the stored username
                 decrypted_username = decrypt_data(row[0])
-                # FIX: Use casefold() for case-insensitive comparison without modifying input
-                if decrypted_username.casefold() == username.casefold():
+                # STRICT: Case-sensitive exact match - no input modification
+                if decrypted_username == username:
                     return row
             except:
                 # Handle legacy unencrypted data
-                if row[0].casefold() == username.casefold():
+                if row[0] == username:
                     return row
         return None
 
@@ -110,7 +110,7 @@ def _find_user_row(username):
 # ============================================================================
 
 def get_user_by_username(username: str):
-    """Get user by username"""
+    """Haal gebruiker op username - retourneert dict of None"""
     try:
         row = _find_user_row(username)
         if row:
@@ -132,7 +132,7 @@ def get_user_by_username(username: str):
     return None
 
 def add_user(username, password_hash, role, first_name, last_name):
-    """Add new user to database with uniqueness check and validation"""
+    """Voeg gebruiker toe - valideert input, checkt uniciteit, versleutelt username"""
     try:
         # FIX: Whitelisting validation - validate ALL inputs before database operation
         from input_validation import validate_username, validate_name
@@ -178,7 +178,7 @@ def add_user(username, password_hash, role, first_name, last_name):
         return False
 
 def get_all_users():
-    """Get all users from database"""
+    """Haal alle gebruikers op - ontsleutelt data, retourneert lijst van dicts"""
     try:
         with get_db() as conn:
             c = conn.cursor()
@@ -210,7 +210,7 @@ def get_all_users():
         return []
 
 def update_user(username, **kwargs):
-    """Update user information - supports all fields including role"""
+    """Update gebruiker - whitelist velden, parameterized queries tegen SQL injection"""
     try:
         # FIX: SQL Injection Prevention - Explicit field whitelist (already present, enhanced with logging)
         allowed_fields = ['first_name', 'last_name', 'role']
@@ -256,7 +256,7 @@ def update_user(username, **kwargs):
         return False
 
 def delete_user(username):
-    """Delete user from database"""
+    """Verwijder gebruiker uit database - parameterized query"""
     try:
         # Find the actual stored username (encrypted or unencrypted)
         row = _find_user_row(username)
@@ -278,7 +278,7 @@ def delete_user(username):
         return False
 
 def reset_user_password(username, new_password_hash):
-    """Reset user password"""
+    """Reset gebruiker wachtwoord - update BCrypt hash in database"""
     try:
         # Find the actual stored username (encrypted or unencrypted)
         row = _find_user_row(username)
@@ -302,7 +302,7 @@ def reset_user_password(username, new_password_hash):
 
 def add_traveller(first_name, last_name, birthday, gender, street_name, house_number,
                  zip_code, city, email_address, mobile_phone, driving_license_number):
-    """Add new traveller to database with validation"""
+    """Voeg reiziger toe - valideert alle velden, versleutelt gevoelige data, genereert UUID"""
     try:
         # FIX: Whitelisting validation - validate ALL inputs before database operation
         from input_validation import (validate_name, validate_gender, validate_street_name,
@@ -376,7 +376,7 @@ def add_traveller(first_name, last_name, birthday, gender, street_name, house_nu
         return None
 
 def get_traveller_by_id(customer_id):
-    """Get a single traveller by customer_id"""
+    """Haal reiziger op ID - ontsleutelt gevoelige velden"""
     try:
         with get_db() as conn:
             c = conn.cursor()
@@ -421,7 +421,7 @@ def get_traveller_by_id(customer_id):
     return None
 
 def get_all_travellers():
-    """Get all travellers from database"""
+    """Haal alle reizigers - ontsleutelt data, gesorteerd op naam"""
     try:
         with get_db() as conn:
             c = conn.cursor()
@@ -468,17 +468,15 @@ def get_all_travellers():
         return []
 
 def search_travellers(search_term):
-    """Search travellers by multiple criteria"""
+    """Zoek reizigers op naam/ID/email - STRICT case-sensitive substring match"""
     try:
         travellers = get_all_travellers()
         results = []
-        # FIX 9: Use casefold() for case-insensitive comparison without modifying data
-        search_folded = search_term.casefold()
 
         for traveller in travellers:
-            # Search in multiple fields
-            searchable_text = f"{traveller['first_name']} {traveller['last_name']} {traveller['customer_id']} {traveller['email_address']}".casefold()
-            if search_folded in searchable_text:
+            # Search in multiple fields - STRICT: exact substring match
+            searchable_text = f"{traveller['first_name']} {traveller['last_name']} {traveller['customer_id']} {traveller['email_address']}"
+            if search_term in searchable_text:
                 results.append(traveller)
         return results
     except Exception as e:
@@ -486,7 +484,7 @@ def search_travellers(search_term):
         return []
 
 def update_traveller(customer_id, **kwargs):
-    """Update traveller information"""
+    """Update reiziger - whitelist velden, versleutelt gevoelige data"""
     try:
         # FIX: SQL Injection Prevention - Explicit field whitelist for defence-in-depth
         allowed_fields = [
@@ -534,7 +532,7 @@ def update_traveller(customer_id, **kwargs):
         return False
 
 def delete_traveller(customer_id):
-    """Delete traveller from database"""
+    """Verwijder reiziger - parameterized query"""
     try:
         with get_db() as conn:
             c = conn.cursor()
@@ -557,7 +555,7 @@ def delete_traveller(customer_id):
 def add_scooter(brand, model, serial_number, top_speed, battery_capacity,
                state_of_charge, target_range_soc, location, last_maintenance_date=None,
                out_of_service_status=0, mileage=0.0):
-    """Add a new scooter to the database with validation"""
+    """Voeg scooter toe - valideert alle velden, slaat GPS locatie op"""
     try:
         # FIX: Whitelisting validation - validate ALL inputs before database operation
         from input_validation import (validate_brand_model, validate_serial_number,
@@ -673,16 +671,15 @@ def get_all_scooters():
         return []
 
 def search_scooters(search_term):
-    """Search scooters by multiple criteria"""
+    """Search scooters by multiple criteria - STRICT case-sensitive"""
     try:
         scooters = get_all_scooters()
         results = []
-        # FIX 9: Use casefold() for case-insensitive comparison without modifying data
-        search_folded = search_term.casefold()
 
         for scooter in scooters:
-            searchable_text = f"{scooter['brand']} {scooter['model']} {scooter['serial_number']}".casefold()
-            if search_folded in searchable_text:
+            # STRICT: exact substring match
+            searchable_text = f"{scooter['brand']} {scooter['model']} {scooter['serial_number']}"
+            if search_term in searchable_text:
                 results.append(scooter)
         return results
     except Exception as e:
@@ -690,7 +687,7 @@ def search_scooters(search_term):
         return []
 
 def update_scooter(serial_number, user_role, **kwargs):
-    """Update scooter information based on user role permissions"""
+    """Update scooter - rol-gebaseerde permissies (service_engineer beperkt)"""
     # Define which fields each role can update
     # FIX: Added target_range_soc to service_engineer_fields (per requirements Table 3)
     service_engineer_fields = ['state_of_charge', 'target_range_soc', 'location', 'out_of_service_status', 'mileage', 'last_maintenance_date']
@@ -744,7 +741,7 @@ def update_scooter(serial_number, user_role, **kwargs):
         return False
 
 def delete_scooter(serial_number):
-    """Delete scooter from database"""
+    """Verwijder scooter - parameterized query"""
     try:
         with get_db() as conn:
             c = conn.cursor()
@@ -826,7 +823,7 @@ def revoke_restore_code(code):
 # ============================================================================
 
 def log_event(description, username="", additional_info="", suspicious=False):
-    """Log an event to the database"""
+    """Log gebeurtenis naar database - inclusief verdachte activiteit flag"""
     try:
         with get_db() as conn:
             c = conn.cursor()

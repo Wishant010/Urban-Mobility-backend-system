@@ -10,19 +10,17 @@ DB_FILE = 'data/data.db'
 LOG_FILE = 'logs.db'
 
 def ensure_backup_dir():
-    """Ensure backup directory exists"""
+    """Zorg dat backup directory bestaat"""
     if not os.path.exists(BACKUP_DIR):
         os.makedirs(BACKUP_DIR)
 
 def ensure_data_dir():
-    """Ensure data directory exists"""
+    """Zorg dat data directory bestaat"""
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
 
 def create_backup(username: str) -> str:
-    """
-    Create a backup of the database and return backup filename
-    """
+    """Maak backup van database, encryptie keys en logs - retourneert filename"""
     ensure_backup_dir()
     ensure_data_dir()
     
@@ -69,10 +67,7 @@ Versie: Urban Mobility Backend System v1.0
         raise Exception(f"Fout bij aanmaken backup: {e}")
 
 def list_backups() -> list:
-    """
-    List all available backup files with their information
-    Returns list of dictionaries with backup info
-    """
+    """Lijst alle beschikbare backups met info (gesorteerd op datum)"""
     ensure_backup_dir()
     
     backups = []
@@ -123,18 +118,7 @@ def list_backups() -> list:
     return backups
 
 def restore_backup(backup_filename: str, username: str, restore_code: str = None, is_super_admin: bool = False) -> bool:
-    """
-    Restore database from backup file
-    
-    Args:
-        backup_filename: Name of backup file to restore
-        username: User performing the restore
-        restore_code: One-time restore code (required for system admins)
-        is_super_admin: True if user is super admin (can restore without code)
-    
-    Returns:
-        True if restore successful, False otherwise
-    """
+    """Herstel backup - super_admin zonder code, system_admin met éénmalige restore code"""
     backup_path = os.path.join(BACKUP_DIR, backup_filename)
     
     # Check if backup file exists
@@ -201,9 +185,7 @@ def restore_backup(backup_filename: str, username: str, restore_code: str = None
         return False
 
 def delete_backup(backup_filename: str, username: str) -> bool:
-    """
-    Delete a backup file (only for super admin)
-    """
+    """Verwijder backup bestand (alleen super_admin)"""
     backup_path = os.path.join(BACKUP_DIR, backup_filename)
     
     try:
@@ -218,9 +200,7 @@ def delete_backup(backup_filename: str, username: str) -> bool:
         return False
 
 def get_backup_info(backup_filename: str) -> dict:
-    """
-    Get detailed information about a backup file
-    """
+    """Retourneer gedetailleerde informatie over backup bestand"""
     backup_path = os.path.join(BACKUP_DIR, backup_filename)
     
     if not os.path.exists(backup_path):
@@ -252,16 +232,7 @@ def get_backup_info(backup_filename: str) -> dict:
     return info
 
 def cleanup_old_backups(keep_count: int = 10, username: str = "systeem") -> int:
-    """
-    Clean up old backup files, keeping only the most recent ones
-    
-    Args:
-        keep_count: Number of recent backups to keep
-        username: User performing the cleanup
-    
-    Returns:
-        Number of backups deleted
-    """
+    """Ruim oude backups op - behoud alleen N meest recente"""
     backups = list_backups()
     
     if len(backups) <= keep_count:
@@ -284,9 +255,7 @@ def cleanup_old_backups(keep_count: int = 10, username: str = "systeem") -> int:
     return deleted_count
 
 def verify_backup(backup_filename: str) -> bool:
-    """
-    Verify backup file integrity
-    """
+    """Verifieer backup integriteit - test zip en controleer data.db aanwezig"""
     backup_path = os.path.join(BACKUP_DIR, backup_filename)
     
     if not os.path.exists(backup_path):
@@ -309,9 +278,7 @@ def verify_backup(backup_filename: str) -> bool:
         return False
 
 def get_backup_size_mb(backup_filename: str) -> float:
-    """
-    Get backup file size in MB
-    """
+    """Retourneer backup grootte in MB"""
     backup_path = os.path.join(BACKUP_DIR, backup_filename)
     
     if not os.path.exists(backup_path):
@@ -321,18 +288,13 @@ def get_backup_size_mb(backup_filename: str) -> float:
     return round(size_bytes / (1024 * 1024), 2)
 
 def create_incremental_backup(username: str, last_backup_date: datetime = None) -> str:
-    """
-    Create incremental backup (for future enhancement)
-    Currently creates full backup but logs it as incremental
-    """
+    """Maak incrementele backup (momenteel volledige backup met andere log)"""
     backup_name = create_backup(username)
     log_event(f"Incrementele backup aangemaakt", username, f"Backup: {backup_name}")
     return backup_name
 
 def get_backup_statistics() -> dict:
-    """
-    Get backup statistics
-    """
+    """Retourneer backup statistieken (aantal, grootte, oudste/nieuwste)"""
     backups = list_backups()
     
     if not backups:

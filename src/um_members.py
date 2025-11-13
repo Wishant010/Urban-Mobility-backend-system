@@ -273,9 +273,9 @@ def create_new_user(current_username: str, current_role: str):
             if username is None:
                 return
 
-            # FIX: Check if username already exists (case-insensitive without modifying input)
+            # STRICT: Check if username already exists (case-sensitive)
             existing_users = get_all_users()
-            username_exists = any(u['username'].casefold() == username.casefold() for u in existing_users)
+            username_exists = any(u['username'] == username for u in existing_users)
 
             if username_exists:
                 print(f"❌ Gebruikersnaam '{username}' bestaat al. Kies een andere gebruikersnaam.")
@@ -373,8 +373,8 @@ def update_existing_user(current_username: str, current_role: str):
         user_to_update = None
         
         for u in users:
-            # FIX 9: Use casefold() for case-insensitive comparison
-            if u['username'].casefold() == username.casefold():
+            # STRICT: Case-sensitive exact match
+            if u['username'] == username:
                 user_to_update = u
                 break
         
@@ -471,8 +471,8 @@ def delete_existing_user(current_username: str, current_role: str):
         return
     
     # Check if user wants to delete themselves
-    # FIX 9: Use casefold() for case-insensitive comparison
-    is_self_deletion = username.casefold() == current_username.casefold()
+    # STRICT: Case-sensitive exact match
+    is_self_deletion = username == current_username
     
     # Super admin cannot delete themselves, but system admin can
     if is_self_deletion and current_role == 'super_admin':
@@ -486,8 +486,8 @@ def delete_existing_user(current_username: str, current_role: str):
         user_to_delete = None
         
         for u in users:
-            # FIX 9: Use casefold() for case-insensitive comparison
-            if u['username'].casefold() == username.casefold():
+            # STRICT: Case-sensitive exact match
+            if u['username'] == username:
                 user_to_delete = u
                 break
         
@@ -510,15 +510,15 @@ def delete_existing_user(current_username: str, current_role: str):
             
             # First confirmation with retry loop
             while True:
-                confirm1 = input("\n⚠️  Weet je ZEKER dat je je eigen account wilt verwijderen? (typ 'ja zeker' of 'nee'): ").strip()
-                if confirm1.strip().casefold() == 'JA ZEKER':
+                confirm1 = input("\n⚠️  Weet je ZEKER dat je je eigen account wilt verwijderen? (typ exact 'ja zeker' of 'nee'): ").strip()
+                if confirm1 == 'ja zeker':
                     break  # Continue to next confirmation
-                elif confirm1.strip().casefold() == 'NEE' or confirm1.strip().casefold() == 'N':
+                elif confirm1 in ['nee', 'NEE', 'Nee', 'n', 'N']:
                     print("Verwijdering geannuleerd")
                     pause()
                     return
                 else:
-                    print("❌ Ongeldige input. Typ 'ja zeker' om door te gaan of 'nee' om te annuleren.")
+                    print("❌ Ongeldige input. Typ exact 'ja zeker' om door te gaan of 'nee' om te annuleren.")
                     continue
             
             # Second confirmation with retry loop
@@ -526,7 +526,7 @@ def delete_existing_user(current_username: str, current_role: str):
                 confirm2 = input(f"\n⚠️  Laatste bevestiging: Typ je gebruikersnaam '{username}' om te bevestigen (of 'nee' om te annuleren): ").strip()
                 if confirm2 == username:
                     break  # Continue to deletion
-                elif confirm2.strip().casefold() == 'NEE' or confirm2.strip().casefold() == 'N':
+                elif confirm2 in ['nee', 'NEE', 'Nee', 'n', 'N']:
                     print("Verwijdering geannuleerd")
                     pause()
                     return
@@ -535,7 +535,7 @@ def delete_existing_user(current_username: str, current_role: str):
                     continue
         else:
             # Regular confirmation for other users
-            confirm = input(f"\n⚠️  Weet je zeker dat je gebruiker {name} ({username}) wilt verwijderen? (ja/nee): ").strip().casefold()
+            confirm = input(f"\n⚠️  Weet je zeker dat je gebruiker {name} ({username}) wilt verwijderen? (ja/nee): ").strip()
             
             if confirm not in ['ja', 'j', 'yes', 'y']:
                 print("Verwijdering geannuleerd")
@@ -1023,9 +1023,9 @@ def delete_traveller_menu(username: str):
         
         # Confirmation
         name = f"{traveller_to_delete['first_name']} {traveller_to_delete['last_name']}"
-        confirm = input(f"\n⚠️  Weet je zeker dat je reiziger {name} (ID: {customer_id}) wilt verwijderen? (ja/nee): ").strip().casefold()
-        
-        if confirm not in ['ja', 'j', 'yes', 'y']:
+        confirm = input(f"\n⚠️  Weet je zeker dat je reiziger {name} (ID: {customer_id}) wilt verwijderen? (ja/nee): ").strip()
+
+        if confirm not in ['ja', 'Ja', 'JA', 'j', 'J', 'yes', 'Yes', 'YES', 'y', 'Y']:
             print("Verwijdering geannuleerd")
             pause()
             return
@@ -1457,15 +1457,15 @@ def update_scooter_menu(username: str, role: str):
                 else:
                     print("❌ Voer beide coördinaten in of laat beide leeg.")
         
-        # Service status
+        # Service status - STRICT: case-sensitive whitelist
         if 'out_of_service_status' in allowed_fields:
             current_status = "buiten dienst" if current_scooter['out_of_service_status'] else "in dienst"
-            new_status = input(f"Status ({current_status}) - voer 'uit' in voor buiten dienst, 'in' voor in dienst: ").strip().casefold()
+            new_status = input(f"Status ({current_status}) - voer 'uit' in voor buiten dienst, 'in' voor in dienst: ").strip()
             if check_back_command(new_status):
                 return
-            if new_status in ['uit', 'buiten', 'out']:
+            if new_status in ['uit', 'Uit', 'UIT', 'buiten', 'Buiten', 'BUITEN', 'out', 'Out', 'OUT']:
                 updates['out_of_service_status'] = 1
-            elif new_status in ['in', 'actief', 'active']:
+            elif new_status in ['in', 'In', 'IN', 'actief', 'Actief', 'ACTIEF', 'active', 'Active', 'ACTIVE']:
                 updates['out_of_service_status'] = 0
         
         # Mileage
@@ -1556,9 +1556,9 @@ def delete_scooter_menu(username: str):
         
         # Confirmation
         brand_model = f"{scooter_to_delete['brand']} {scooter_to_delete['model']}"
-        confirm = input(f"\n⚠️  Weet je zeker dat je scooter {brand_model} (serienummer: {serial_number}) wilt verwijderen? (ja/nee): ").strip().casefold()
-        
-        if confirm not in ['ja', 'j', 'yes', 'y']:
+        confirm = input(f"\n⚠️  Weet je zeker dat je scooter {brand_model} (serienummer: {serial_number}) wilt verwijderen? (ja/nee): ").strip()
+
+        if confirm not in ['ja', 'Ja', 'JA', 'j', 'J', 'yes', 'Yes', 'YES', 'y', 'Y']:
             print("Verwijdering geannuleerd")
             pause()
             return
@@ -1709,9 +1709,9 @@ def restore_from_backup_interactive(username: str, role: str):
                 return
         
         # Confirm restore
-        confirm = input(f"⚠️  Weet je zeker dat je backup {selected_backup} wilt herstellen?\nDit overschrijft de huidige data! (ja/nee): ").strip().casefold()
-        
-        if confirm not in ['ja', 'j', 'yes', 'y']:
+        confirm = input(f"⚠️  Weet je zeker dat je backup {selected_backup} wilt herstellen?\nDit overschrijft de huidige data! (ja/nee): ").strip()
+
+        if confirm not in ['ja', 'Ja', 'JA', 'j', 'J', 'yes', 'Yes', 'YES', 'y', 'Y']:
             print("Restore geannuleerd.")
             pause()
             return
@@ -1765,9 +1765,9 @@ def delete_backup_interactive(username: str):
         selected_backup = backups[choice]['filename']
         
         # Confirm deletion
-        confirm = input(f"⚠️  Weet je zeker dat je backup {selected_backup} wilt verwijderen? (ja/nee): ").strip().casefold()
-        
-        if confirm not in ['ja', 'j', 'yes', 'y']:
+        confirm = input(f"⚠️  Weet je zeker dat je backup {selected_backup} wilt verwijderen? (ja/nee): ").strip()
+
+        if confirm not in ['ja', 'Ja', 'JA', 'j', 'J', 'yes', 'Yes', 'YES', 'y', 'Y']:
             print("Verwijdering geannuleerd.")
             pause()
             return
@@ -1949,9 +1949,9 @@ def revoke_restore_code_interactive_menu(username: str):
         print(f"📅 Aangemaakt: {code_info['created_date'][:10]}")
         
         # Confirmation
-        confirm = input("⚠️  Weet je zeker dat je deze code wilt intrekken? (ja/nee): ").strip().casefold()
-        
-        if confirm not in ['ja', 'j', 'yes', 'y']:
+        confirm = input("⚠️  Weet je zeker dat je deze code wilt intrekken? (ja/nee): ").strip()
+
+        if confirm not in ['ja', 'Ja', 'JA', 'j', 'J', 'yes', 'Yes', 'YES', 'y', 'Y']:
             print("Intrekking geannuleerd")
             pause()
             return
@@ -2051,13 +2051,13 @@ def view_logs_menu(username: str, role: str):
                 print(f"  {option}")
             
             # Get user choice
-            choice = input("\nKies een optie: ").strip().casefold()
-            
-            if choice == 't' or check_back_command(choice):
+            choice = input("\nKies een optie: ").strip()
+
+            if check_back_command(choice):
                 break
-            elif choice == 'v' and current_page > 1:
+            elif choice in ['v', 'V', 'vorige', 'Vorige'] and current_page > 1:
                 current_page -= 1
-            elif choice == 'n' and current_page < total_pages:
+            elif choice in ['n', 'N', 'volgende', 'Volgende'] and current_page < total_pages:
                 current_page += 1
             elif choice == 'g':
                 try:

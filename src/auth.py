@@ -11,15 +11,15 @@ SUPER_ADMIN = {'username': 'super_admin', 'password': 'Admin_123?', 'role': 'sup
 failed_attempts = {}
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt"""
+    """Hash wachtwoord met BCrypt - automatische salt generatie"""
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 def check_password(password: str, hashed: str) -> bool:
-    """Verify password against hash"""
+    """Verifieer wachtwoord tegen BCrypt hash"""
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 def is_suspicious_login_attempt(username: str) -> bool:
-    """Check if login attempts are suspicious (multiple failed attempts)"""
+    """Check verdachte login - 3+ mislukte pogingen in 15 minuten"""
     current_time = datetime.now()
     
     # Clean old attempts (older than 15 minutes)
@@ -36,17 +36,14 @@ def is_suspicious_login_attempt(username: str) -> bool:
     return False
 
 def record_failed_attempt(username: str):
-    """Record a failed login attempt"""
+    """Registreer mislukte loginpoging met timestamp"""
     current_time = datetime.now()
     if username not in failed_attempts:
         failed_attempts[username] = []
     failed_attempts[username].append(current_time)
 
 def login(username: str, password: str) -> tuple[str, str] | None:
-    """
-    Authenticate user and return (role, username) if successful
-    Returns None if authentication fails
-    """
+    """Authenticeer gebruiker - retourneert (rol, username) of None bij falen"""
     # Check for suspicious activity
     suspicious = is_suspicious_login_attempt(username)
     
@@ -75,12 +72,9 @@ def login(username: str, password: str) -> tuple[str, str] | None:
         log_event(f"Mislukte inlogpoging", "", additional_info, suspicious)
         return None
 
-def register_user(username: str, password: str, role: str, first_name: str, last_name: str, 
+def register_user(username: str, password: str, role: str, first_name: str, last_name: str,
                  current_user_role: str) -> tuple[bool, str]:
-    """
-    Register a new user with role-based permissions
-    Returns (success, message)
-    """
+    """Registreer nieuwe gebruiker met rol-gebaseerde permissies - retourneert (succes, bericht)"""
     # Check role permissions
     if not can_create_user(current_user_role, role):
         return False, f"Geen toestemming om {role} aan te maken"
@@ -110,7 +104,7 @@ def register_user(username: str, password: str, role: str, first_name: str, last
         return False, "Gebruiker aanmaken mislukt (gebruikersnaam mogelijk al in gebruik)"
 
 def can_create_user(current_role: str, target_role: str) -> bool:
-    """Check if current user role can create target user role"""
+    """Check of huidige rol doelrol mag aanmaken"""
     if current_role == 'super_admin':
         return True  # Super admin can create anyone
     elif current_role == 'system_admin':
@@ -119,7 +113,7 @@ def can_create_user(current_role: str, target_role: str) -> bool:
         return False  # Service engineers cannot create users
 
 def can_manage_user(current_role: str, target_role: str) -> bool:
-    """Check if current user role can manage (update/delete) target user role"""
+    """Check of huidige rol doelrol mag beheren (update/delete)"""
     if current_role == 'super_admin':
         return True  # Super admin can manage anyone except other super admins
     elif current_role == 'system_admin':
@@ -128,10 +122,7 @@ def can_manage_user(current_role: str, target_role: str) -> bool:
         return False  # Service engineers cannot manage other users
 
 def reset_password(username: str, current_user_role: str) -> tuple[bool, str]:
-    """
-    Reset user password (generate temporary password)
-    Returns (success, new_password_or_error_message)
-    """
+    """Reset wachtwoord - genereer tijdelijk wachtwoord - retourneert (succes, wachtwoord_of_fout)"""
     user = get_user_by_username(username)
     if not user:
         return False, "Gebruiker niet gevonden"
@@ -154,10 +145,7 @@ def reset_password(username: str, current_user_role: str) -> tuple[bool, str]:
         return False, "Fout bij wachtwoord reset"
 
 def change_own_password(username: str, old_password: str, new_password: str) -> tuple[bool, str]:
-    """
-    Allow user to change their own password
-    Returns (success, message)
-    """
+    """Wijzig eigen wachtwoord - controleert oud wachtwoord en nieuw != oud"""
     # Skip validation for super admin (hardcoded)
     if username == SUPER_ADMIN['username']:
         return False, "Super admin wachtwoord kan niet gewijzigd worden"
@@ -186,7 +174,7 @@ def change_own_password(username: str, old_password: str, new_password: str) -> 
         return False, "Fout bij wachtwoord wijziging"
 
 def get_role_permissions(role: str) -> dict:
-    """Get permissions for each role"""
+    """Retourneer permissies voor rol - volledige lijst van toegestane acties"""
     permissions = {
         'super_admin': {
             'manage_users': True,
@@ -228,12 +216,12 @@ def get_role_permissions(role: str) -> dict:
     return permissions.get(role, {})
 
 def has_permission(role: str, permission: str) -> bool:
-    """Check if role has specific permission"""
+    """Check of rol specifieke permissie heeft"""
     permissions = get_role_permissions(role)
     return permissions.get(permission, False)
 
 def validate_role_action(current_role: str, action: str) -> bool:
-    """Validate if current role can perform the action"""
+    """Valideer of huidige rol actie mag uitvoeren"""
     role_actions = {
         'super_admin': [
             'create_user', 'update_user', 'delete_user', 'reset_password',

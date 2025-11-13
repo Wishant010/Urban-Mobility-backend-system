@@ -1,8 +1,3 @@
-"""
-Complete Encryption Module for Urban Mobility Backend System
-Provides secure symmetric encryption for sensitive data storage
-"""
-
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -15,16 +10,16 @@ KEY_PATH = 'data/fernet.key'
 SALT_PATH = 'data/salt.key'
 
 def ensure_data_dir():
-    """Ensure data directory exists"""
+    """Zorg dat data directory bestaat"""
     if not os.path.exists('data'):
         os.makedirs('data')
 
 def generate_salt() -> bytes:
-    """Generate a new salt for key derivation"""
+    """Genereer nieuwe salt voor key derivation"""
     return os.urandom(16)
 
 def derive_key_from_password(password: str, salt: bytes) -> bytes:
-    """Derive encryption key from password using PBKDF2"""
+    """Afleiden encryptie key uit wachtwoord met PBKDF2 (100k iteraties)"""
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
@@ -34,10 +29,7 @@ def derive_key_from_password(password: str, salt: bytes) -> bytes:
     return base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
 def load_or_create_key() -> bytes:
-    """
-    Load existing encryption key or create a new one
-    This function ensures we have a consistent encryption key
-    """
+    """Laad bestaande encryptie key of maak nieuwe aan"""
     ensure_data_dir()
     
     if os.path.exists(KEY_PATH):
@@ -57,7 +49,7 @@ def load_or_create_key() -> bytes:
         return create_new_key()
 
 def create_new_key() -> bytes:
-    """Create and save a new encryption key"""
+    """Creëer en sla nieuwe encryptie key veilig op (chmod 600)"""
     ensure_data_dir()
     
     # Generate new key
@@ -78,7 +70,7 @@ def create_new_key() -> bytes:
         raise Exception(f"Fout bij opslaan encryptie sleutel: {e}")
 
 def load_or_create_salt() -> bytes:
-    """Load existing salt or create a new one"""
+    """Laad bestaande salt of maak nieuwe aan"""
     ensure_data_dir()
     
     if os.path.exists(SALT_PATH):
@@ -106,18 +98,7 @@ except Exception as e:
     raise
 
 def encrypt_data(data: str) -> str:
-    """
-    Encrypt a string and return base64 encoded encrypted data
-    
-    Args:
-        data: String to encrypt
-        
-    Returns:
-        Base64 encoded encrypted string
-        
-    Raises:
-        Exception: If encryption fails
-    """
+    """Versleutel string met Fernet - retourneert base64 encoded data"""
     if not data:
         return ""
     
@@ -129,18 +110,7 @@ def encrypt_data(data: str) -> str:
         return data  # Return original data if encryption fails
 
 def decrypt_data(encrypted_data: str) -> str:
-    """
-    Decrypt base64 encoded encrypted data and return original string
-    
-    Args:
-        encrypted_data: Base64 encoded encrypted string
-        
-    Returns:
-        Decrypted original string
-        
-    Raises:
-        Exception: If decryption fails
-    """
+    """Ontsleutel Fernet data - retourneert originele string"""
     if not encrypted_data:
         return ""
     
@@ -153,16 +123,7 @@ def decrypt_data(encrypted_data: str) -> str:
         return encrypted_data
 
 def encrypt_sensitive_fields(data_dict: dict, sensitive_fields: list) -> dict:
-    """
-    Encrypt specified sensitive fields in a dictionary
-    
-    Args:
-        data_dict: Dictionary containing data
-        sensitive_fields: List of field names to encrypt
-        
-    Returns:
-        Dictionary with sensitive fields encrypted
-    """
+    """Versleutel specifieke velden in dictionary"""
     encrypted_dict = data_dict.copy()
     
     for field in sensitive_fields:
@@ -175,16 +136,7 @@ def encrypt_sensitive_fields(data_dict: dict, sensitive_fields: list) -> dict:
     return encrypted_dict
 
 def decrypt_sensitive_fields(data_dict: dict, sensitive_fields: list) -> dict:
-    """
-    Decrypt specified sensitive fields in a dictionary
-    
-    Args:
-        data_dict: Dictionary containing encrypted data
-        sensitive_fields: List of field names to decrypt
-        
-    Returns:
-        Dictionary with sensitive fields decrypted
-    """
+    """Ontsleutel specifieke velden in dictionary"""
     decrypted_dict = data_dict.copy()
     
     for field in sensitive_fields:
@@ -199,15 +151,7 @@ def decrypt_sensitive_fields(data_dict: dict, sensitive_fields: list) -> dict:
     return decrypted_dict
 
 def is_encrypted(data: str) -> bool:
-    """
-    Check if a string appears to be encrypted data
-    
-    Args:
-        data: String to check
-        
-    Returns:
-        True if data appears to be encrypted, False otherwise
-    """
+    """Check of string versleutelde data lijkt te zijn"""
     if not data:
         return False
     
@@ -219,16 +163,7 @@ def is_encrypted(data: str) -> bool:
         return False
 
 def encrypt_file_content(file_path: str, output_path: Optional[str] = None) -> bool:
-    """
-    Encrypt entire file content
-    
-    Args:
-        file_path: Path to file to encrypt
-        output_path: Path for encrypted file (optional, defaults to file_path + '.enc')
-        
-    Returns:
-        True if successful, False otherwise
-    """
+    """Versleutel volledig bestand - output naar .enc bestand"""
     if not os.path.exists(file_path):
         return False
     
@@ -250,16 +185,7 @@ def encrypt_file_content(file_path: str, output_path: Optional[str] = None) -> b
         return False
 
 def decrypt_file_content(encrypted_file_path: str, output_path: Optional[str] = None) -> bool:
-    """
-    Decrypt entire file content
-    
-    Args:
-        encrypted_file_path: Path to encrypted file
-        output_path: Path for decrypted file (optional, removes .enc extension)
-        
-    Returns:
-        True if successful, False otherwise
-    """
+    """Ontsleutel volledig bestand - verwijdert .enc extensie"""
     if not os.path.exists(encrypted_file_path):
         return False
     
@@ -284,12 +210,7 @@ def decrypt_file_content(encrypted_file_path: str, output_path: Optional[str] = 
         return False
 
 def validate_encryption_setup() -> bool:
-    """
-    Validate that encryption is working correctly
-    
-    Returns:
-        True if encryption/decryption works, False otherwise
-    """
+    """Valideer dat encryptie correct werkt met test data"""
     test_data = "Test encryptie string 123!@#"
     
     try:
@@ -321,12 +242,7 @@ def validate_encryption_setup() -> bool:
         return False
 
 def get_encryption_info() -> dict:
-    """
-    Get information about the encryption setup
-    
-    Returns:
-        Dictionary with encryption information
-    """
+    """Retourneer informatie over encryptie setup"""
     info = {
         'key_file_exists': os.path.exists(KEY_PATH),
         'salt_file_exists': os.path.exists(SALT_PATH),
@@ -338,12 +254,7 @@ def get_encryption_info() -> dict:
     return info
 
 def rotate_encryption_key() -> bool:
-    """
-    Generate a new encryption key (WARNING: This will make existing encrypted data unreadable)
-    
-    Returns:
-        True if successful, False otherwise
-    """
+    """Genereer nieuwe encryptie key - WAARSCHUWING: oude data onleesbaar!"""
     try:
         # Backup old key
         if os.path.exists(KEY_PATH):
@@ -368,15 +279,7 @@ def rotate_encryption_key() -> bool:
 
 # Security utility functions
 def secure_delete_file(file_path: str) -> bool:
-    """
-    Securely delete a file by overwriting it before deletion
-    
-    Args:
-        file_path: Path to file to delete
-        
-    Returns:
-        True if successful, False otherwise
-    """
+    """Veilig verwijder bestand - overschrijf 3x met random data voor verwijderen"""
     if not os.path.exists(file_path):
         return False
     
